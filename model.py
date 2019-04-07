@@ -270,7 +270,7 @@ class RecommenderSideInfoGAE(nn.Module):
         #    hidden = layer(self.activations[-1])
         #    self.activations.append(hidden)
         #self.outputs = self.activations[-1]
-        layer = self.layers[3]
+        layer = self.layers[-1]
         outputs = layer(self.activations[-1], user_indices, item_indices)
 
         # Build metrics

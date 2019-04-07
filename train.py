@@ -350,7 +350,7 @@ else:
                            learning_rate=LR,
                            )
 
-#optimizer = optim.Adam(model.parameters(), lr=LR, betas=(0.9, 0.999), eps=1.e-8)
+#optimizer = optim.Adam(torch.nn.ParameterList([p for l in model.layers for p in list(l.parameters())]), lr=LR, betas=(0.9, 0.999), eps=1.e-8)
 optimizer = optim.Adam([p for l in model.layers for p in list(l.parameters())], lr=LR, betas=(0.9, 0.999), eps=1.e-8)
 
 best_val_score = np.inf
@@ -369,10 +369,12 @@ for epoch in range(NB_EPOCH):
     # with exponential moving averages
     model.train()
     _, train_avg_loss, train_rmse = model(train_support, train_support_t, train_labels, train_u_indices, train_v_indices, train_u_features_side, train_v_features_side)
+    #print(model.layers[0].weights_v)
 
     optimizer.zero_grad()
     train_avg_loss.backward()
     optimizer.step()
+    #print(model.layers[0].weights_u.grad)
 
     model.eval()
     _, val_avg_loss, val_rmse = model(val_support, val_support_t, val_labels, val_u_indices, val_v_indices, val_u_features_side, val_v_features_side)
@@ -416,7 +418,7 @@ if TESTING:
     print('test rmse = ', test_rmse)
 
     # restore with polyak averages of parameters
-    variables_to_restore = model.variable_averages.variables_to_restore()
+    #variables_to_restore = model.variable_averages.variables_to_restore()
     #saver = tf.train.Saver(variables_to_restore)
     #saver.restore(sess, save_path)
 

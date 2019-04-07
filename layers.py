@@ -77,6 +77,9 @@ class Dense(nn.Module):
 		self.dropout = dropout
 		self.act = act
 
+		for p in [self.weights_u, self.weights_v]:
+			nn.init.xavier_normal_(p)
+
 	def forward(self, inputs):
 		x_u = inputs[0]
 		x_u = F.dropout(x_u, self.dropout)
@@ -125,6 +128,9 @@ class StackGCN(nn.Module):
 		#self.support_transpose = tf.sparse_split(axis=1, num_split=num_support, sp_input=support_t)
 
 		self.act = act
+
+		for p in [self.weights_u, self.weights_v]:
+			nn.init.xavier_normal_(p)
 
 	def forward(self, inputs, support, support_transpose):
 		x_u = inputs[0]
@@ -312,6 +318,9 @@ class BilinearMixture(nn.Module):
 
 		self.dropout = dropout
 		self.act = act
+
+		for p in [self.weights, self.weights_scalars]:#, self.user_bias, self.item_bias]:
+			nn.init.xavier_normal_(p)
 
 	def forward(self, inputs, u_indices, v_indices):
 

@@ -24,7 +24,7 @@ def expected_rmse(logits, labels, class_values=None):
     :return: rmse
     """
 
-    probs = F.softmax(logits)
+    probs = F.softmax(logits, 1)
     if class_values is None:
         #scores = tf.to_float(tf.range(start=0, limit=logits.get_shape()[1]) + 1)
         scores = torch.range(start=0, end=logits.size(1)).float() + 1.
