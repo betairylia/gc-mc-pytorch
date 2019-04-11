@@ -6,6 +6,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torch.nn.parameter import Parameter
 
+device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 # global unique layer ID dictionary for layer name assignment
 _LAYER_UIDS = {}
@@ -43,7 +44,7 @@ def dropout_sparse(x, keep_prob, num_nonzero_elems):
 	"""Dropout for sparse tensors. Currently fails for very large sparse tensors (>1M elements)
 	"""
 	noise_shape = [num_nonzero_elems]
-	random_tensor = keep_prob
+	random_tensor = 1. - keep_prob
 	random_tensor += Parameter(torch.randn(noise_shape))#tf.random_uniform(noise_shape)
 	dropout_mask = tf.cast(tf.floor(random_tensor), dtype=tf.bool)
 	pre_out = tf.sparse_retain(x, dropout_mask)
@@ -138,8 +139,8 @@ class StackGCN(nn.Module):
 		
 		'''
 		if self.sparse_inputs:
-			x_u = dropout_sparse(x_u, 1 - self.dropout, self.u_features_nonzero)
-			x_v = dropout_sparse(x_v, 1 - self.dropout, self.v_features_nonzero)
+			x_u = dropout_sparse(x_u, self.dropout, self.u_features_nonzero)
+			x_v = dropout_sparse(x_v, self.dropout, self.v_features_nonzero)
 		else:
 			x_u = F.dropout(x_u, self.dropout)
 			x_v = F.dropout(x_v, self.dropout)
@@ -298,7 +299,7 @@ class BilinearMixture(nn.Module):
 
 			else:
 				weights.append(orthogonal([input_dim, input_dim]))
-		self.weights = torch.stack(weights, 0)
+		self.weights = torch.stack(weights, 0).to(device)
 
 		self.weights_scalars = Parameter(torch.randn(num_weights, num_classes))
 

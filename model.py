@@ -6,7 +6,7 @@ import torch.optim as optim
 from layers import *
 from metrics import softmax_accuracy, expected_rmse, softmax_cross_entropy
 
-
+device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 class RecommenderGAE(nn.Module):
     def __init__(self, u_feature, v_features, u_features_nonzero, v_features_nonzero, class_values, dropout, 
@@ -127,7 +127,7 @@ class RecommenderSideInfoGAE(nn.Module):
         u_features = self.csr_to_tensor(u_features)
         v_features = self.csr_to_tensor(v_features)
         u_features.requires_grad=False; v_features.requires_grad=False
-        self.inputs = (u_features, v_features)
+        self.inputs = (u_features.to(device), v_features.to(device))
 
         self.u_features_nonzero = u_features_nonzero
         self.v_features_nonzero = v_features_nonzero
@@ -168,17 +168,15 @@ class RecommenderSideInfoGAE(nn.Module):
         #self.optimizer = optim.Adam([p for l in self.layers for p in l.parameters()], 
         #                            lr=self.learning_rate, betas=(0.9, 0.999), eps=1.e-8)
 
-        moving_average_decay = 0.995
-
 
     def _loss(self, outputs, labels):
         return softmax_cross_entropy(outputs, labels)
 
     def _accuracy(self, outputs, labels):
-        return softmax_accuracy(outputs, labels)
+        return softmax_accuracy(outputs, labels).item()
 
     def _rmse(self, outputs, labels):
-        return expected_rmse(outputs, labels, self.class_values)
+        return expected_rmse(outputs, labels, self.class_values).item()
 
     def _build(self):
         if self.accum == 'sum':
@@ -203,7 +201,7 @@ class RecommenderSideInfoGAE(nn.Module):
                                         sparse_inputs=True,
                                         act=F.relu,
                                         dropout=self.dropout,
-                                        share_user_item_weights=True))
+                                        share_user_item_weights=True).to(device))
 
         else:
             raise ValueError('accumulation function option invalid, can only be stack or sum.')
@@ -213,13 +211,13 @@ class RecommenderSideInfoGAE(nn.Module):
                                  act=F.relu,
                                  dropout=0.,
                                  bias=True,
-                                 share_user_item_weights=False))
+                                 share_user_item_weights=False).to(device))
 
         self.layers.append(Dense(input_dim=self.hidden[0]+self.feat_hidden_dim,
                                  output_dim=self.hidden[1],
                                  act=lambda x: x,
                                  dropout=self.dropout,
-                                 share_user_item_weights=False))
+                                 share_user_item_weights=False).to(device))
 
         self.layers.append(BilinearMixture(num_classes=self.num_classes,
                                            input_dim=self.hidden[1],
@@ -229,7 +227,7 @@ class RecommenderSideInfoGAE(nn.Module):
                                            dropout=0.,
                                            act=lambda x: x,
                                            num_weights=self.num_basis_functions,
-                                           diagonal=False))
+                                           diagonal=False).to(device))
 
     def csr_to_tensor(self, data):
         samples = data.shape[0]
@@ -263,15 +261,13 @@ class RecommenderSideInfoGAE(nn.Module):
 
         concat_hidden = layer([input_u, input_v])
 
-        self.activations.append(concat_hidden)
-
         # Build sequential layer model
         #for layer in self.layers[3::]:
         #    hidden = layer(self.activations[-1])
         #    self.activations.append(hidden)
         #self.outputs = self.activations[-1]
         layer = self.layers[-1]
-        outputs = layer(self.activations[-1], user_indices, item_indices)
+        outputs = layer(concat_hidden, user_indices, item_indices)
 
         # Build metrics
         loss = self._loss(outputs, labels)

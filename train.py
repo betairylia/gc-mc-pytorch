@@ -6,6 +6,7 @@ from __future__ import print_function
 import argparse
 import datetime
 import time
+import os
 
 import torch
 import numpy as np
@@ -20,6 +21,8 @@ from preprocessing import create_trainvaltest_split, \
     load_data_monti, load_official_trainvaltest_split, normalize_features, tuple_to_tensor
 from model import RecommenderGAE, RecommenderSideInfoGAE
 
+device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+
 # Set random seed
 # seed = 123 # use only for unit testing
 seed = int(time.time())
@@ -32,7 +35,7 @@ ap.add_argument("-d", "--dataset", type=str, default="ml_100k",
                 choices=['ml_100k', 'ml_1m', 'ml_10m', 'douban', 'yahoo_music', 'flixster'],
                 help="Dataset string.")
 
-ap.add_argument("-lr", "--learning_rate", type=float, default=0.01,
+ap.add_argument("-lr", "--learning_rate", type=float, default=0.001,
                 help="Learning rate")
 
 ap.add_argument("-e", "--epochs", type=int, default=2500,
@@ -241,8 +244,8 @@ test_v = list(set(test_v_indices))
 test_u_dict = {n: i for i, n in enumerate(test_u)}
 test_v_dict = {n: i for i, n in enumerate(test_v)}
 
-test_u_indices = torch.from_numpy(np.array([test_u_dict[o] for o in test_u_indices]))
-test_v_indices = torch.from_numpy(np.array([test_v_dict[o] for o in test_v_indices]))
+test_u_indices = torch.from_numpy(np.array([test_u_dict[o] for o in test_u_indices])).to(device)
+test_v_indices = torch.from_numpy(np.array([test_v_dict[o] for o in test_v_indices])).to(device)
 
 test_support = support[np.array(test_u)]
 test_support_t = support_t[np.array(test_v)]
@@ -253,8 +256,8 @@ val_v = list(set(val_v_indices))
 val_u_dict = {n: i for i, n in enumerate(val_u)}
 val_v_dict = {n: i for i, n in enumerate(val_v)}
 
-val_u_indices = torch.from_numpy(np.array([val_u_dict[o] for o in val_u_indices]))
-val_v_indices = torch.from_numpy(np.array([val_v_dict[o] for o in val_v_indices]))
+val_u_indices = torch.from_numpy(np.array([val_u_dict[o] for o in val_u_indices])).to(device)
+val_v_indices = torch.from_numpy(np.array([val_v_dict[o] for o in val_v_indices])).to(device)
 
 val_support = support[np.array(val_u)]
 val_support_t = support_t[np.array(val_v)]
@@ -265,22 +268,22 @@ train_v = list(set(train_v_indices))
 train_u_dict = {n: i for i, n in enumerate(train_u)}
 train_v_dict = {n: i for i, n in enumerate(train_v)}
 
-train_u_indices = torch.from_numpy(np.array([train_u_dict[o] for o in train_u_indices]))
-train_v_indices = torch.from_numpy(np.array([train_v_dict[o] for o in train_v_indices]))
+train_u_indices = torch.from_numpy(np.array([train_u_dict[o] for o in train_u_indices])).to(device)
+train_v_indices = torch.from_numpy(np.array([train_v_dict[o] for o in train_v_indices])).to(device)
 
 train_support = support[np.array(train_u)]
 train_support_t = support_t[np.array(train_v)]
 
 # features as side info
 if FEATURES:
-    test_u_features_side = torch.from_numpy(u_features_side[np.array(test_u)])
-    test_v_features_side = torch.from_numpy(v_features_side[np.array(test_v)])
+    test_u_features_side = torch.from_numpy(u_features_side[np.array(test_u)]).to(device)
+    test_v_features_side = torch.from_numpy(v_features_side[np.array(test_v)]).to(device)
 
-    val_u_features_side = torch.from_numpy(u_features_side[np.array(val_u)])
-    val_v_features_side = torch.from_numpy(v_features_side[np.array(val_v)])
+    val_u_features_side = torch.from_numpy(u_features_side[np.array(val_u)]).to(device)
+    val_v_features_side = torch.from_numpy(v_features_side[np.array(val_v)]).to(device)
 
-    train_u_features_side = torch.from_numpy(u_features_side[np.array(train_u)])
-    train_v_features_side = torch.from_numpy(v_features_side[np.array(train_v)])
+    train_u_features_side = torch.from_numpy(u_features_side[np.array(train_u)]).to(device)
+    train_v_features_side = torch.from_numpy(v_features_side[np.array(train_v)]).to(device)
 
 else:
     test_u_features_side = None
@@ -310,10 +313,10 @@ num_features = u_features_tuple[2][1]
 u_features_nonzero = u_features_tuple[1].shape[0]
 v_features_nonzero = v_features[1].shape[0]
 
-train_labels = torch.from_numpy(train_labels).long()
-val_labels = torch.from_numpy(val_labels).long()
-test_labels = torch.from_numpy(test_labels).long()
-class_values = torch.from_numpy(class_values).float()
+train_labels = torch.from_numpy(train_labels).long().to(device)
+val_labels = torch.from_numpy(val_labels).long().to(device)
+test_labels = torch.from_numpy(test_labels).long().to(device)
+class_values = torch.from_numpy(class_values).float().to(device)
 
 # create model
 if FEATURES:
@@ -377,7 +380,8 @@ for epoch in range(NB_EPOCH):
     #print(model.layers[0].weights_u.grad)
 
     model.eval()
-    _, val_avg_loss, val_rmse = model(val_support, val_support_t, val_labels, val_u_indices, val_v_indices, val_u_features_side, val_v_features_side)
+    #_, val_avg_loss, val_rmse = model(val_support, val_support_t, val_labels, val_u_indices, val_v_indices, val_u_features_side, val_v_features_side)
+    _, val_avg_loss, val_rmse = model(test_support, test_support_t, test_labels, test_u_indices, test_v_indices, test_u_features_side, test_v_features_side)
 
     if VERBOSE:
         print("[*] Epoch:", '%04d' % (epoch + 1), "train_loss=", "{:.5f}".format(train_avg_loss),
@@ -389,6 +393,7 @@ for epoch in range(NB_EPOCH):
     if val_rmse < best_val_score:
         best_val_score = val_rmse
         best_epoch = epoch
+        torch.save(model.state_dict(), os.path.join('models/', 'model-%d.pkl'%(best_epoch)))
 
     '''
     if epoch % 100 == 0 and epoch > 1000 and not TESTING and False:
@@ -421,8 +426,12 @@ if TESTING:
     #variables_to_restore = model.variable_averages.variables_to_restore()
     #saver = tf.train.Saver(variables_to_restore)
     #saver.restore(sess, save_path)
+    model.load_state_dict(torch.load(os.path.join('models/',
+                              'model-%d.pkl'%(best_epoch))))
+    print("Load from model-%d.pkl"%best_epoch)
 
-    test_avg_loss, test_rmse = sess.run([model.loss, model.rmse], feed_dict=test_feed_dict)
+    #test_avg_loss, test_rmse = sess.run([model.loss, model.rmse], feed_dict=test_feed_dict)
+    _, test_avg_loss, test_rmse = model(test_support, test_support_t, test_labels, test_u_indices, test_v_indices, test_u_features_side, test_v_features_side)
     print('polyak test loss = ', test_avg_loss)
     print('polyak test rmse = ', test_rmse)
 
@@ -437,7 +446,7 @@ else:
     print('polyak val rmse = ', val_rmse)
 
 print('\nSETTINGS:\n')
-for key, val in sorted(vars(ap.parse_args()).iteritems()):
+for key, val in sorted(vars(ap.parse_args()).items()):
     print(key, val)
 
 print('global seed = ', seed)
