@@ -11,7 +11,7 @@ from torch.utils import data
 
 from utils import *
 
-def get_loader(data_type):
+def get_loader(data_type, testing = False):
 	"""Builds and returns Dataloader."""
 	SYM = True
 	DATASET = data_type
@@ -19,7 +19,7 @@ def get_loader(data_type):
 
 	u_features, v_features, adj_train, train_labels, train_u_indices, train_v_indices, \
 		val_labels, val_u_indices, val_v_indices, test_labels, \
-		test_u_indices, test_v_indices, class_values = create_trainvaltest_split(data_type, datasplit_path=datasplit_path)
+		test_u_indices, test_v_indices, class_values, adj_val = create_trainvaltest_split(data_type, datasplit_path=datasplit_path, testing = testing)
 
 	num_users, num_items = adj_train.shape
 
@@ -47,4 +47,4 @@ def get_loader(data_type):
 	num_features = u_features.shape[1]
 
 	return num_users, num_items, len(class_values), num_side_features, num_features, \
-		   u_features, v_features, u_features_side, v_features_side, \
+		   u_features, v_features, u_features_side, v_features_side, adj_train, adj_val \

@@ -67,6 +67,8 @@ class GraphConvolution(Module):
             # then multiply with rating matrices
             supports_u.append(torch.mm(support_norm[u], tmp_v))
             supports_v.append(torch.mm(support_norm_t[v], tmp_u))
+            # supports_u.append(torch.mm(support_norm_t[u], tmp_u))
+            # supports_v.append(torch.mm(support_norm_t[v], tmp_v))
 
         z_u = torch.sum(torch.stack(supports_u, 0), 0)
         z_v = torch.sum(torch.stack(supports_v, 0), 0)

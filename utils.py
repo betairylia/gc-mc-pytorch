@@ -7,7 +7,7 @@ import pandas as pd
 import numpy as np
 import scipy.sparse as sp
 import pickle as pkl
-
+from urllib.request import *
 
 def normalize_features(feat):
 
@@ -203,6 +203,10 @@ def load_data(fname, seed=1234, verbose=True):
         u_nodes_ratings, v_nodes_ratings = u_nodes_ratings.astype(np.int64), v_nodes_ratings.astype(np.int32)
         ratings = ratings.astype(np.float64)
 
+        # ratings_pruned = np.zeros((num_users, num_items))
+        # for _i, (_u, _v) in enumerate(zip(u_nodes_ratings, v_nodes_ratings)):
+        #     ratings_pruned[_u, _v] = ratings[_i]
+
         # Movie features (genres)
         sep = r'|'
         movie_file = data_dir + files[1]
@@ -285,6 +289,10 @@ def load_data(fname, seed=1234, verbose=True):
 
         u_nodes_ratings, v_nodes_ratings = u_nodes_ratings.astype(np.int64), v_nodes_ratings.astype(np.int64)
         ratings = ratings.astype(np.float32)
+        
+        # ratings_pruned = np.zeros((num_users, num_items))
+        # for _i, (_u, _v) in enumerate(zip(u_nodes_ratings, v_nodes_ratings)):
+        #     ratings_pruned[_u, _v] = ratings[_i]
 
         # Load movie features
         movies_file = data_dir + files[1]
@@ -465,7 +473,11 @@ def create_trainvaltest_split(dataset, seed=1234, testing=False, datasplit_path=
     rating_mx_train[train_idx] = labels[train_idx].astype(np.float32) + 1.
     rating_mx_train = sp.csr_matrix(rating_mx_train.reshape(num_users, num_items))
 
+    rating_mx_val = np.zeros(num_users * num_items, dtype=np.float32)
+    rating_mx_val[val_idx] = labels[val_idx].astype(np.float32) + 1.
+    rating_mx_val = sp.csr_matrix(rating_mx_val.reshape(num_users, num_items))
+
     class_values = np.sort(np.unique(ratings))
 
     return u_features, v_features, rating_mx_train, train_labels, u_train_idx, v_train_idx, \
-        val_labels, u_val_idx, v_val_idx, test_labels, u_test_idx, v_test_idx, class_values
+        val_labels, u_val_idx, v_val_idx, test_labels, u_test_idx, v_test_idx, class_values, rating_mx_val

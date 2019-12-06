@@ -16,18 +16,28 @@ from data_loader import get_loader
 args = get_args()
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+# device = 'cpu'
 
 # Load the datas
 num_users, num_items, num_classes, num_side_features, num_features,\
-u_features, v_features, u_features_side, v_features_side = get_loader(args.data_type)
+u_features, v_features, u_features_side, v_features_side, rating_train, rating_val = get_loader(args.data_type, testing = (args.mode == 'test'))
+
+def to_one_hot(x, class_num, axis):
+    shape = list(x.shape)
+    shape.insert(axis, class_num)
+    one_hot = torch.zeros(*shape).to(x.device)
+    one_hot.scatter_(axis, torch.unsqueeze(x, axis), 1)
+
+    return one_hot
 
 u_features = torch.from_numpy(u_features).to(device).float()
 v_features = torch.from_numpy(v_features).to(device).float()
 u_features_side = torch.from_numpy(u_features_side).to(device)
 v_features_side = torch.from_numpy(v_features_side).to(device)
-rating_train = torch.load(args.train_path).to(device)
-rating_val = torch.load(args.val_path).to(device)
-rating_test = torch.load(args.test_path).to(device)
+rating_train = to_one_hot(torch.LongTensor(rating_train.todense()).to(device), 6, 0)[1:, :, :]
+rating_val = to_one_hot(torch.LongTensor(rating_val.todense()).to(device), 6, 0)[1:, :, :]
+# rating_test = torch.load(args.test_path).to(device)
+# rating_train = torch.load(args.train_path).to(device)
 
 # Creating the architecture of the Neural Network
 model = GAE(num_users, num_items, num_classes,
@@ -112,7 +122,7 @@ def test():
     with torch.no_grad():
         u = torch.from_numpy(np.array(range(num_users))).to(device)
         v = torch.from_numpy(np.array(range(num_items))).to(device)
-        m_hat, loss_ce, loss_rmse = model(u, v, rating_test)
+        m_hat, loss_ce, loss_rmse = model(u, v, rating_train)
 
     print('[test loss] : '+str(loss_ce.item()) +
           ' [test rmse] : '+str(loss_rmse.item()))
@@ -123,4 +133,8 @@ if __name__ == '__main__':
         train()
     elif args.mode == 'test':
         best_epoch = args.test_epoch
+
+    num_users, num_items, num_classes, num_side_features, num_features,\
+    u_features, v_features, u_features_side, v_features_side, rating_train, rating_val = get_loader(args.data_type, testing = True)
+    rating_train = to_one_hot(torch.LongTensor(rating_train.todense()).to(device), 6, 0)[1:, :, :]
     test()
